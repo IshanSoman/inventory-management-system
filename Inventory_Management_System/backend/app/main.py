@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from . import models, database, auth
-from .routers import auth_router, products, categories, batches, customers, invoices, transactions, reports
+from .routers import auth_router, products, categories, batches, customers, invoices, transactions, reports, payments
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -48,6 +48,7 @@ app.include_router(customers.router, prefix="/customers", tags=["Customers"])
 app.include_router(invoices.router, prefix="/invoices", tags=["Invoices"])
 app.include_router(transactions.router, prefix="/transactions", tags=["Transactions"])
 app.include_router(reports.router, prefix="/reports", tags=["Reports"])
+app.include_router(payments.router, prefix="/payments", tags=["Payments"])
 
 @app.get("/")
 def read_root():

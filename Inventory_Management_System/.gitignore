@@ -1,0 +1,20 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Environment
+.env
+
+# Mac
+.DS_Store
+__MACOSX/
+
+# Database (optional - better not upload)
+*.db
+
+# Logs
+*.log

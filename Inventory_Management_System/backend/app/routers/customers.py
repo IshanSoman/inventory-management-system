@@ -16,6 +16,59 @@ def get_customer_by_phone(phone: str, db: Session = Depends(database.get_db), cu
         raise HTTPException(status_code=404, detail="Customer not found")
     return customer
 
+@router.get("/{customer_id}/summary", response_model=schemas.CustomerSummary)
+def get_customer_summary(
+    customer_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.check_staff_role)
+):
+    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Unpaid invoices count
+    unpaid_count = db.query(models.Invoice).filter(
+        models.Invoice.customer_id == customer_id,
+        models.Invoice.amount_due > 0
+    ).count()
+
+    # Last payment date
+    last_payment = db.query(models.Payment).filter(
+        models.Payment.customer_id == customer_id
+    ).order_by(models.Payment.payment_date.desc()).first()
+
+    # Recent invoices
+    recent_invoices = db.query(models.Invoice).filter(
+        models.Invoice.customer_id == customer_id
+    ).order_by(models.Invoice.created_at.desc()).limit(5).all()
+
+    invoice_summaries = []
+    for inv in recent_invoices:
+        status = "PAID"
+        if inv.amount_due > 0:
+            status = "PARTIAL" if inv.amount_paid > 0 else "UNPAID"
+        
+        invoice_summaries.append({
+            "invoice_id": inv.id,
+            "total_amount": inv.total_amount,
+            "amount_paid": inv.amount_paid,
+            "amount_due": inv.amount_due,
+            "payment_type": inv.payment_type,
+            "status": status,
+            "created_at": inv.created_at.isoformat() if inv.created_at else None
+        })
+
+    return {
+        "customer_id": customer.id,
+        "customer_name": customer.name,
+        "phone": customer.phone,
+        "email": customer.email,
+        "pending_balance": customer.pending_balance,
+        "total_unpaid_invoices": unpaid_count,
+        "last_payment_date": last_payment.payment_date.isoformat() if last_payment else None,
+        "recent_invoices": invoice_summaries
+    }
+
 @router.get("/{customer_id}/history")
 def get_customer_history(
     customer_id: int,

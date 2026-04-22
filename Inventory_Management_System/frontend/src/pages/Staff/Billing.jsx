@@ -10,16 +10,39 @@ const StaffBilling = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showInvoice, setShowInvoice] = useState(null);
+  const [error, setError] = useState(null);
 
   // Customer Search/Add State
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [custFormData, setCustFormData] = useState({ name: '', phone: '', email: '' });
 
-  const [error, setError] = useState(null);
+  // Payment State
+  const [paymentType, setPaymentType] = useState('cash'); // 'cash' or 'udhari'
+  const [amountPaid, setAmountPaid] = useState('');
+  const [customerSummary, setCustomerSummary] = useState(null);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      fetchCustomerSummary(selectedCustomer.id);
+      setPaymentType('cash');
+      setAmountPaid('');
+    } else {
+      setCustomerSummary(null);
+    }
+  }, [selectedCustomer]);
+
+  const fetchCustomerSummary = async (id) => {
+    try {
+      const res = await apiClient.get(`/customers/${id}/summary`);
+      setCustomerSummary(res.data);
+    } catch (err) {
+      console.error("Summary fetch error:", err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -78,6 +101,7 @@ const StaffBilling = () => {
   };
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const amountDue = paymentType === 'cash' ? 0 : Math.max(0, totalAmount - (parseFloat(amountPaid) || 0));
 
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
@@ -110,6 +134,8 @@ const StaffBilling = () => {
       const invoiceData = {
         customer_id: selectedCustomer.id,
         total_amount: totalAmount,
+        payment_type: paymentType,
+        amount_paid: paymentType === 'cash' ? totalAmount : (parseFloat(amountPaid) || 0),
         items: cart.map(item => ({
           product_id: item.id,
           quantity: item.qty,
@@ -151,18 +177,31 @@ const StaffBilling = () => {
           
           <div style={{ textAlign: 'left', borderTop: '1px solid var(--border)', padding: '1.5rem 0' }}>
             <p><strong>Customer:</strong> {customers.find(c => c.id === showInvoice.customer_id)?.name}</p>
+            <p><strong>Payment Type:</strong> <span style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>{showInvoice.payment_type}</span></p>
             <p><strong>Date:</strong> {new Date(showInvoice.created_at).toLocaleString()}</p>
+            
             <div style={{ marginTop: '1rem' }}>
               {showInvoice.items.map(item => (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                   <span>{products.find(p => p.id === item.product_id)?.name} x {item.quantity}</span>
-                  <span>${(item.price * item.quantity).toFixed(2)}</span>
+                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
-            <div style={{ borderTop: '2px solid var(--text-main)', marginTop: '1rem', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.25rem' }}>
-              <span>Total</span>
-              <span>${showInvoice.total_amount.toFixed(2)}</span>
+
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: '1rem', paddingTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem' }}>
+                <span>Paid</span>
+                <span>₹{showInvoice.amount_paid.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', color: '#ef4444' }}>
+                <span>Due</span>
+                <span>₹{showInvoice.amount_due.toFixed(2)}</span>
+              </div>
+              <div style={{ borderTop: '2px solid var(--text-main)', marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.25rem' }}>
+                <span>Total</span>
+                <span>₹{showInvoice.total_amount.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
@@ -180,7 +219,7 @@ const StaffBilling = () => {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem', height: 'calc(100vh - 120px)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', height: 'calc(100vh - 120px)' }}>
       {/* Product Selection Side */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div className="card">
@@ -215,7 +254,7 @@ const StaffBilling = () => {
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.sku}</p>
                   <p style={{ fontWeight: '600' }}>{p.name}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                    <span style={{ fontWeight: '700', color: 'var(--primary)' }}>${p.price.toFixed(2)}</span>
+                    <span style={{ fontWeight: '700', color: 'var(--primary)' }}>₹{p.price.toFixed(2)}</span>
                     <span style={{ fontSize: '0.75rem' }} className={stock < 10 ? 'badge badge-low' : 'badge badge-in'}>
                       {stock} Left
                     </span>
@@ -227,62 +266,80 @@ const StaffBilling = () => {
         </div>
       </div>
 
-      {/* Cart Side */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <ShoppingCart size={24} /> Current Order
-          </h2>
-
-          <div style={{ marginBottom: '1.5rem' }}>
+      {/* Cart & Customer Side */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
+        {/* Customer Section */}
+        <div className="card">
             {selectedCustomer ? (
-              <div style={{ background: '#eff6ff', padding: '1rem', borderRadius: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontWeight: '600' }}>{selectedCustomer.name}</p>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{selectedCustomer.phone}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <p style={{ fontWeight: '700', fontSize: '1.125rem' }}>{selectedCustomer.name}</p>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{selectedCustomer.phone}</p>
+                    </div>
+                    <button onClick={() => setSelectedCustomer(null)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Change Customer</button>
                 </div>
-                <button onClick={() => setSelectedCustomer(null)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Change</button>
+                
+                {customerSummary && (
+                    <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem' }}>Pending Balance:</span>
+                            <span style={{ fontWeight: '700', color: customerSummary.pending_balance > 0 ? '#ef4444' : '#22c55e' }}>₹{customerSummary.pending_balance.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem' }}>Unpaid Invoices:</span>
+                            <span style={{ fontWeight: '700' }}>{customerSummary.total_unpaid_invoices}</span>
+                        </div>
+                        {customerSummary.pending_balance > 2000 && (
+                            <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 'bold', marginTop: '0.5rem' }}>
+                                ⚠️ Customer has high pending dues!
+                            </p>
+                        )}
+                    </div>
+                )}
               </div>
             ) : showCustomerForm ? (
-              <form onSubmit={handleCreateCustomer} className="card" style={{ padding: '1rem', background: '#f8fafc', boxShadow: 'none', border: '1px solid var(--border)' }}>
-                <p style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>New Customer</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <input placeholder="Full Name" value={custFormData.name} onChange={e => setCustFormData({...custFormData, name: e.target.value})} required />
-                  <input placeholder="Phone Number" value={custFormData.phone} onChange={e => setCustFormData({...custFormData, phone: e.target.value})} required />
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <form onSubmit={handleCreateCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ fontWeight: 'bold' }}>New Customer</p>
+                <input placeholder="Full Name" value={custFormData.name} onChange={e => setCustFormData({...custFormData, name: e.target.value})} required />
+                <input placeholder="Phone Number" value={custFormData.phone} onChange={e => setCustFormData({...custFormData, phone: e.target.value})} required />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button type="button" onClick={() => setShowCustomerForm(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
                     <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Create</button>
-                  </div>
                 </div>
               </form>
             ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <select 
-                    style={{ width: '100%' }} 
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select 
+                    style={{ flex: 1 }} 
                     onChange={e => {
-                      const cust = customers.find(c => c.id === parseInt(e.target.value));
-                      if (cust) setSelectedCustomer(cust);
+                        const cust = customers.find(c => c.id === parseInt(e.target.value));
+                        if (cust) setSelectedCustomer(cust);
                     }}
                     value=""
-                  >
+                >
                     <option value="">Select Existing Customer</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
-                  </select>
-                </div>
+                </select>
                 <button onClick={() => setShowCustomerForm(true)} className="btn btn-secondary">
-                  <UserPlus size={18} />
+                    <UserPlus size={18} />
                 </button>
               </div>
             )}
-          </div>
+        </div>
+
+        {/* Order Details */}
+        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.25rem' }}>
+            <ShoppingCart size={22} /> Order Items
+          </h2>
 
           <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {cart.map(item => (
               <div key={item.id} style={{ display: 'flex', gap: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: '500' }}>{item.name}</p>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>${item.price.toFixed(2)} / unit</p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>₹{item.price.toFixed(2)} / unit</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <button onClick={() => updateCartQty(item.id, -1)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border)', background: 'white' }}>-</button>
@@ -290,18 +347,48 @@ const StaffBilling = () => {
                   <button onClick={() => updateCartQty(item.id, 1)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border)', background: 'white' }}>+</button>
                 </div>
                 <div style={{ minWidth: '80px', textAlign: 'right' }}>
-                  <p style={{ fontWeight: 'bold' }}>${(item.price * item.qty).toFixed(2)}</p>
+                  <p style={{ fontWeight: 'bold' }}>₹{(item.price * item.qty).toFixed(2)}</p>
                   <button onClick={() => removeFromCart(item.id)} style={{ color: 'var(--danger)', background: 'none', border: 'none', padding: 0 }}><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
-            {cart.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '2rem' }}>Cart is empty</p>}
+            {cart.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '2rem' }}>Order is empty</p>}
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+            {/* Payment Section */}
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                    <label style={{ flex: 1, cursor: 'pointer' }}>
+                        <input type="radio" name="payment" value="cash" checked={paymentType === 'cash'} onChange={() => setPaymentType('cash')} style={{ marginRight: '0.5rem' }} />
+                        Full Cash
+                    </label>
+                    <label style={{ flex: 1, cursor: 'pointer' }}>
+                        <input type="radio" name="payment" value="udhari" checked={paymentType === 'udhari'} onChange={() => setPaymentType('udhari')} style={{ marginRight: '0.5rem' }} />
+                        Pay Later (Udhari)
+                    </label>
+                </div>
+
+                {paymentType === 'udhari' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.875rem', fontWeight: '500' }}>Amount Paid Now (optional)</label>
+                        <input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={amountPaid} 
+                            onChange={e => setAmountPaid(e.target.value)} 
+                            style={{ width: '100%' }}
+                        />
+                        <p style={{ fontSize: '0.875rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                            Amount to be added to credit: <strong>₹{amountDue.toFixed(2)}</strong>
+                        </p>
+                    </div>
+                )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '1.25rem', fontWeight: 'bold' }}>
               <span>Total Amount</span>
-              <span style={{ color: 'var(--primary)' }}>${totalAmount.toFixed(2)}</span>
+              <span style={{ color: 'var(--primary)' }}>₹{totalAmount.toFixed(2)}</span>
             </div>
             <button 
               onClick={finalizeBill} 
@@ -309,7 +396,7 @@ const StaffBilling = () => {
               className="btn btn-primary" 
               style={{ width: '100%', padding: '1.25rem', justifyContent: 'center', opacity: (cart.length === 0 || !selectedCustomer) ? 0.5 : 1 }}
             >
-              Generate Invoice & Finish
+              Generate Bill
             </button>
           </div>
         </div>

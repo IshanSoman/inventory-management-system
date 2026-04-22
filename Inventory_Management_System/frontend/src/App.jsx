@@ -11,6 +11,7 @@ import AdminCustomers from './pages/Admin/Customers';
 import StaffDashboard from './pages/Staff/Dashboard';
 import StaffBilling from './pages/Staff/Billing';
 import StaffCatalog from './pages/Staff/ProductCatalog';
+import StaffPayments from './pages/Staff/Payments';
 import Sidebar from './components/Sidebar';
 
 const ProtectedRoute = ({ children, role }) => {
@@ -51,6 +52,7 @@ function App() {
           <Route path="/staff" element={<ProtectedRoute role="staff"><StaffDashboard /></ProtectedRoute>} />
           <Route path="/staff/billing" element={<ProtectedRoute role="staff"><StaffBilling /></ProtectedRoute>} />
           <Route path="/staff/catalog" element={<ProtectedRoute role="staff"><StaffCatalog /></ProtectedRoute>} />
+          <Route path="/staff/payments" element={<ProtectedRoute role="staff"><StaffPayments /></ProtectedRoute>} />
           
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>

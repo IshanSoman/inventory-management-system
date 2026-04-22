@@ -10,7 +10,8 @@ import {
   ShoppingCart, 
   Users, 
   LogOut,
-  Files
+  Files,
+  IndianRupee
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -29,6 +30,7 @@ const Sidebar = () => {
     { to: '/staff', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/staff/billing', icon: ShoppingCart, label: 'New Billing' },
     { to: '/staff/catalog', icon: Package, label: 'Product Catalog' },
+    { to: '/staff/payments', icon: IndianRupee, label: 'Customer Payments' },
   ];
 
   const links = user.role === 'admin' ? adminLinks : staffLinks;
