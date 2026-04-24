@@ -11,6 +11,10 @@ const StaffBilling = () => {
   const [loading, setLoading] = useState(true);
   const [showInvoice, setShowInvoice] = useState(null);
   const [error, setError] = useState(null);
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`);
+  };
 
   // Customer Search/Add State
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -178,7 +182,7 @@ const StaffBilling = () => {
           <div style={{ textAlign: 'left', borderTop: '1px solid var(--border)', padding: '1.5rem 0' }}>
             <p><strong>Customer:</strong> {customers.find(c => c.id === showInvoice.customer_id)?.name}</p>
             <p><strong>Payment Type:</strong> <span style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>{showInvoice.payment_type}</span></p>
-            <p><strong>Date:</strong> {new Date(showInvoice.created_at).toLocaleString()}</p>
+            <p><strong>Date:</strong> {formatDate(showInvoice.created_at)?.toLocaleString()}</p>
             
             <div style={{ marginTop: '1rem' }}>
               {showInvoice.items.map(item => (

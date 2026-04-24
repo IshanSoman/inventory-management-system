@@ -168,3 +168,14 @@ class CustomerSummary(BaseModel):
     total_unpaid_invoices: int
     last_payment_date: Optional[str]
     recent_invoices: List[RecentInvoiceSummary]
+
+# Customer Ledger (Unified History)
+class CustomerLedgerEntry(BaseModel):
+    id: int
+    date: datetime
+    type: str # 'BILL' or 'PAYMENT'
+    reference: str
+    total_amount: float
+    amount_paid: float
+    amount_due: float
+    payment_type: Optional[str] = None # 'cash' or 'udhari'

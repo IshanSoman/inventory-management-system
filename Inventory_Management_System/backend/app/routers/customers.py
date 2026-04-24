@@ -126,3 +126,52 @@ def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(data
     db.commit()
     db.refresh(db_customer)
     return db_customer
+
+@router.get("/{customer_id}/ledger", response_model=List[schemas.CustomerLedgerEntry])
+def get_customer_ledger(
+    customer_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.check_staff_role)
+):
+    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Fetch all invoices
+    invoices = db.query(models.Invoice).filter(models.Invoice.customer_id == customer_id).all()
+    # Fetch all payments
+    payments = db.query(models.Payment).filter(models.Payment.customer_id == customer_id).all()
+
+    ledger = []
+
+    # Process Invoices
+    for inv in invoices:
+        ledger.append({
+            "id": inv.id,
+            "date": inv.created_at,
+            "type": "BILL",
+            "reference": f"Invoice #INV-{inv.id}",
+            "total_amount": inv.total_amount,
+            "amount_paid": inv.amount_paid,
+            "amount_due": inv.amount_due,
+            "payment_type": inv.payment_type
+        })
+
+    # Process Payments (independent payments or credit clearances)
+    for p in payments:
+        # Avoid duplicate entries for payments tied to invoices if we only want to show the 'Payment' action
+        # Actually, it's better to show 'BILL' and 'PAYMENT' as separate rows for clarity
+        ledger.append({
+            "id": p.id,
+            "date": p.payment_date,
+            "type": "PAYMENT",
+            "reference": f"Payment Ref: {p.id}" if not p.invoice_id else f"Payment for #INV-{p.invoice_id}",
+            "total_amount": p.amount,
+            "amount_paid": p.amount,
+            "amount_due": 0.0,
+            "payment_type": "cash"
+        })
+
+    # Sort by date descending
+    ledger.sort(key=lambda x: x["date"], reverse=True)
+    return ledger

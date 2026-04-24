@@ -5,6 +5,11 @@ import { Package, DollarSign, AlertTriangle, Activity, Download, Clock } from 'l
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    // Backend sends UTC naive strings. Append 'Z' to treat as UTC and convert to local.
+    return new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`);
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -146,7 +151,7 @@ const AdminDashboard = () => {
                       </span>
                     </td>
                     <td>{t.quantity}</td>
-                    <td style={{ fontSize: '0.875rem' }}>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                    <td style={{ fontSize: '0.875rem' }}>{formatDate(t.timestamp)?.toLocaleTimeString()}</td>
                   </tr>
                 ))}
                 {stats?.recent_transactions.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center' }}>No recent activity</td></tr>}

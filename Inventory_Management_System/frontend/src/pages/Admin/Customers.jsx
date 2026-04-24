@@ -10,7 +10,9 @@ import {
 ───────────────────────────────────────────── */
 const fmtDate = (iso) => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-IN', {
+  // Backend sends UTC naive strings. Append 'Z' to treat as UTC and convert to local.
+  const date = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : `${iso}Z`);
+  return date.toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });

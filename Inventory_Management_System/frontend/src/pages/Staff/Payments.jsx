@@ -12,6 +12,12 @@ const StaffPayments = () => {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState('');
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    // Backend sends UTC naive strings. Append 'Z' to treat as UTC and convert to local.
+    return new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`);
+  };
+
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -29,7 +35,7 @@ const StaffPayments = () => {
 
   const fetchCustomerHistory = async (id) => {
     try {
-      const res = await apiClient.get(`/payments/customer/${id}`);
+      const res = await apiClient.get(`/customers/${id}/ledger`);
       setPaymentHistory(res.data);
     } catch (err) {
       console.error(err);
@@ -184,22 +190,62 @@ const StaffPayments = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th>Date</th>
+                      <th>Time & Date</th>
+                      <th>Type</th>
                       <th>Reference</th>
+                      <th>Transaction Info</th>
                       <th>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paymentHistory.map(p => (
-                      <tr key={p.id}>
-                        <td>{new Date(p.payment_date).toLocaleDateString()}</td>
-                        <td style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                          {p.invoice_id ? `Invoice #INV-${p.invoice_id}` : 'Direct Credit Clearance'}
+                      <tr key={`${p.type}-${p.id}`}>
+                        <td>
+                          <p style={{ fontWeight: '600', margin: 0 }}>
+                            {formatDate(p.date)?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                            {formatDate(p.date)?.toLocaleDateString()}
+                          </p>
                         </td>
-                        <td style={{ fontWeight: 'bold', color: '#22c55e' }}>+ ₹{p.amount.toFixed(2)}</td>
+                        <td>
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            background: p.type === 'BILL' ? '#fef3c7' : '#dcfce7',
+                            color: p.type === 'BILL' ? '#92400e' : '#166534'
+                          }}>
+                            {p.type}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                          {p.reference}
+                        </td>
+                        <td>
+                          {p.type === 'BILL' ? (
+                            <div style={{ fontSize: '0.8rem' }}>
+                              <p style={{ margin: 0 }}>Total: ₹{p.total_amount}</p>
+                              {p.amount_due > 0 ? (
+                                <p style={{ margin: 0, color: '#e11d48' }}>Due: ₹{p.amount_due}</p>
+                              ) : (
+                                <p style={{ margin: 0, color: '#16a34a' }}>Fully Paid</p>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Received Payment</span>
+                          )}
+                        </td>
+                        <td style={{ 
+                          fontWeight: 'bold', 
+                          color: p.type === 'BILL' ? '#e11d48' : '#22c55e' 
+                        }}>
+                          {p.type === 'BILL' ? '-' : '+'} ₹{p.type === 'BILL' ? p.total_amount.toFixed(2) : p.total_amount.toFixed(2)}
+                        </td>
                       </tr>
                     ))}
-                    {paymentHistory.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center' }}>No payment history found</td></tr>}
+                    {paymentHistory.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center' }}>No transaction history found</td></tr>}
                   </tbody>
                 </table>
               </div>

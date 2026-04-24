@@ -6,6 +6,10 @@ const AdminTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,7 +66,7 @@ const AdminTransactions = () => {
                 </td>
                 <td style={{ fontWeight: 500 }}>{getProductName(t.product_id)}</td>
                 <td>{t.quantity}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{new Date(t.timestamp).toLocaleString()}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{formatDate(t.timestamp)?.toLocaleString()}</td>
                 <td>{t.user_id}</td>
               </tr>
             ))}
