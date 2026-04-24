@@ -111,3 +111,23 @@ def export_sales(db: Session = Depends(database.get_db), current_user: models.Us
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=sales.csv"}
     )
+
+@router.get("/inventory-status")
+def get_inventory_status(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.check_admin_role)):
+    products = db.query(models.Product).all()
+    status_data = []
+    for p in products:
+        total_stock = sum(b.quantity for b in p.batches)
+        total_sold = db.query(func.sum(models.InvoiceItem.quantity)).filter(models.InvoiceItem.product_id == p.id).scalar() or 0
+        status_data.append({
+            "id": p.id,
+            "name": p.name,
+            "sku": p.sku,
+            "category": p.category.name if p.category else "N/A",
+            "current_stock": total_stock,
+            "total_sold": total_sold,
+            "price": p.price
+        })
+    # Sort by demand (total_sold) desc
+    status_data.sort(key=lambda x: x["total_sold"], reverse=True)
+    return status_data

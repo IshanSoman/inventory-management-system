@@ -21,7 +21,8 @@ const Sidebar = () => {
     { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/products', icon: Package, label: 'Products' },
     { to: '/admin/categories', icon: Tags, label: 'Categories' },
-    { to: '/admin/stock', icon: Database, label: 'Stock Management' },
+    { to: '/admin/inventory', icon: Database, label: 'Inventory' },
+    { to: '/admin/stock', icon: Package, label: 'Stock IN (Batches)' },
     { to: '/admin/transactions', icon: History, label: 'Transactions' },
     { to: '/admin/customers', icon: Users, label: 'Customers' },
   ];

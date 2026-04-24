@@ -8,6 +8,7 @@ import AdminCategories from './pages/Admin/Categories';
 import AdminStock from './pages/Admin/Stock';
 import AdminTransactions from './pages/Admin/Transactions';
 import AdminCustomers from './pages/Admin/Customers';
+import AdminInventory from './pages/Admin/Inventory';
 import StaffDashboard from './pages/Staff/Dashboard';
 import StaffBilling from './pages/Staff/Billing';
 import StaffCatalog from './pages/Staff/ProductCatalog';
@@ -45,6 +46,7 @@ function App() {
           <Route path="/admin/products" element={<ProtectedRoute role="admin"><AdminProducts /></ProtectedRoute>} />
           <Route path="/admin/categories" element={<ProtectedRoute role="admin"><AdminCategories /></ProtectedRoute>} />
           <Route path="/admin/stock" element={<ProtectedRoute role="admin"><AdminStock /></ProtectedRoute>} />
+          <Route path="/admin/inventory" element={<ProtectedRoute role="admin"><AdminInventory /></ProtectedRoute>} />
           <Route path="/admin/transactions" element={<ProtectedRoute role="admin"><AdminTransactions /></ProtectedRoute>} />
           <Route path="/admin/customers" element={<ProtectedRoute role="admin"><AdminCustomers /></ProtectedRoute>} />
           

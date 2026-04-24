@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { Plus, Database } from 'lucide-react';
 
 const AdminStock = () => {
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [formData, setFormData] = useState({
-    product_id: '',
+    product_id: location.state?.preSelectId || '',
     batch_number: '',
     expiry_date: '',
     quantity: ''

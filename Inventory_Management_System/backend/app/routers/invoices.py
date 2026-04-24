@@ -77,15 +77,17 @@ def create_invoice(
     # 5. Send Telegram Notification if customer has a chat_id
     if customer.telegram_chat_id:
         try:
-            # Prepare items for the message
+            # Prepare items for the message and PDF
             items_for_msg = []
             for item in db_invoice.items:
                 items_for_msg.append({
                     "name": item.product.name,
                     "quantity": item.quantity,
-                    "price": item.price
+                    "price": item.price,
+                    "subtotal": round(item.quantity * item.price, 2)
                 })
             
+            # Send Text Summary
             msg = telegram_service.format_bill_message(
                 customer_name=customer.name,
                 invoice_id=db_invoice.id,
@@ -95,6 +97,20 @@ def create_invoice(
                 amount_due=db_invoice.amount_due
             )
             telegram_service.send_telegram_message(customer.telegram_chat_id, msg)
+
+            # Generate and Send PDF Document
+            pdf_buffer = telegram_service.generate_pdf_invoice(
+                customer_name=customer.name,
+                invoice_id=db_invoice.id,
+                items_data=items_for_msg,
+                total=db_invoice.total_amount,
+                amount_paid=db_invoice.amount_paid,
+                amount_due=db_invoice.amount_due
+            )
+            if pdf_buffer:
+                filename = f"Invoice_INV_{db_invoice.id:03d}.pdf"
+                telegram_service.send_telegram_document(customer.telegram_chat_id, pdf_buffer, filename)
+                
         except Exception as e:
             print(f"Failed to send Telegram notification: {e}")
 
