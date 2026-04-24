@@ -71,6 +71,7 @@ class CustomerBase(BaseModel):
     name: str
     phone: str
     email: Optional[EmailStr] = None
+    telegram_chat_id: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
     pass
@@ -164,6 +165,7 @@ class CustomerSummary(BaseModel):
     customer_name: str
     phone: str
     email: Optional[str]
+    telegram_chat_id: Optional[str]
     pending_balance: float
     total_unpaid_invoices: int
     last_payment_date: Optional[str]

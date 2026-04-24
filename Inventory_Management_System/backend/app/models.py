@@ -48,6 +48,7 @@ class Customer(Base):
     name = Column(String)
     phone = Column(String, unique=True, index=True)
     email = Column(String, nullable=True)
+    telegram_chat_id = Column(String, nullable=True)
     pending_balance = Column(Float, default=0.0)  # Udhari / credit balance
     
     invoices = relationship("Invoice", back_populates="customer")

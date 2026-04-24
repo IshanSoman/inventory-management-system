@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas, auth, database
+from ..services import telegram_service
 
 router = APIRouter()
 
@@ -29,4 +30,19 @@ def record_payment(payment: schemas.PaymentCreate, db: Session = Depends(databas
     
     db.commit()
     db.refresh(db_payment)
+
+    # Send Telegram Notification
+    if customer.telegram_chat_id:
+        try:
+            msg = (
+                f"<b>💰 Payment Received</b>\n\n"
+                f"Hello <b>{customer.name}</b>,\n"
+                f"We have received your payment of <b>₹{payment.amount}</b>.\n"
+                f"Your remaining balance is: <b>₹{customer.pending_balance}</b>.\n\n"
+                f"Thank you!"
+            )
+            telegram_service.send_telegram_message(customer.telegram_chat_id, msg)
+        except Exception as e:
+            print(f"Telegram error: {e}")
+
     return db_payment

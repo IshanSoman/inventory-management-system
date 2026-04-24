@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/apiClient';
-import { Search, ShoppingCart, UserPlus, Trash2, CheckCircle, Printer } from 'lucide-react';
+import { Search, ShoppingCart, UserPlus, Trash2, CheckCircle, Printer, HelpCircle, Edit } from 'lucide-react';
 
 const StaffBilling = () => {
   const [products, setProducts] = useState([]);
@@ -18,7 +18,8 @@ const StaffBilling = () => {
 
   // Customer Search/Add State
   const [showCustomerForm, setShowCustomerForm] = useState(false);
-  const [custFormData, setCustFormData] = useState({ name: '', phone: '', email: '' });
+  const [editMode, setEditMode] = useState(false);
+  const [custFormData, setCustFormData] = useState({ name: '', phone: '', email: '', telegram_chat_id: '' });
 
   // Payment State
   const [paymentType, setPaymentType] = useState('cash'); // 'cash' or 'udhari'
@@ -110,17 +111,25 @@ const StaffBilling = () => {
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
     try {
-      // Sanitize payload: don't send empty email strings
       const payload = { ...custFormData };
       if (!payload.email) delete payload.email;
       
-      const res = await apiClient.post('/customers', payload);
-      setCustomers([...customers, res.data]);
+      let res;
+      if (editMode && selectedCustomer) {
+        res = await apiClient.put(`/customers/${selectedCustomer.id}`, payload);
+        setCustomers(customers.map(c => c.id === res.data.id ? res.data : c));
+        alert('Customer updated successfully!');
+      } else {
+        res = await apiClient.post('/customers', payload);
+        setCustomers([...customers, res.data]);
+      }
+      
       setSelectedCustomer(res.data);
       setShowCustomerForm(false);
-      setCustFormData({ name: '', phone: '', email: '' });
+      setEditMode(false);
+      setCustFormData({ name: '', phone: '', email: '', telegram_chat_id: '' });
     } catch (err) {
-      alert(err.response?.data?.detail || 'Error creating customer');
+      alert(err.response?.data?.detail || 'Error saving customer');
     }
   };
 
@@ -281,10 +290,52 @@ const StaffBilling = () => {
                         <p style={{ fontWeight: '700', fontSize: '1.125rem' }}>{selectedCustomer.name}</p>
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{selectedCustomer.phone}</p>
                     </div>
-                    <button onClick={() => setSelectedCustomer(null)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Change Customer</button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          onClick={() => {
+                            setCustFormData({
+                              name: selectedCustomer.name,
+                              phone: selectedCustomer.phone,
+                              email: selectedCustomer.email || '',
+                              telegram_chat_id: selectedCustomer.telegram_chat_id || ''
+                            });
+                            setEditMode(true);
+                            setShowCustomerForm(true);
+                          }} 
+                          className="btn btn-secondary" 
+                          style={{ padding: '0.25rem 0.5rem' }}
+                          title="Edit Customer"
+                        >
+                            <Edit size={16} />
+                        </button>
+                        <button onClick={() => setSelectedCustomer(null)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Change</button>
+                    </div>
                 </div>
                 
-                {customerSummary && (
+                {editMode ? (
+                  <form onSubmit={handleCreateCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                    <p style={{ fontWeight: 'bold' }}>Edit Customer Details</p>
+                    <input placeholder="Full Name" value={custFormData.name} onChange={e => setCustFormData({...custFormData, name: e.target.value})} required />
+                    <input placeholder="Phone Number" value={custFormData.phone} onChange={e => setCustFormData({...custFormData, phone: e.target.value})} required />
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        placeholder="Telegram Chat ID (optional)" 
+                        value={custFormData.telegram_chat_id} 
+                        onChange={e => setCustFormData({...custFormData, telegram_chat_id: e.target.value})} 
+                        style={{ width: '100%' }}
+                      />
+                      <HelpCircle 
+                        size={16} 
+                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', cursor: 'help', color: 'var(--text-muted)' }} 
+                        title="Ask customer to message @userinfobot on Telegram to get their ID. They MUST also 'Start' your shop's bot!"
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button type="button" onClick={() => { setEditMode(false); }} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Changes</button>
+                    </div>
+                  </form>
+                ) : customerSummary && (
                     <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <span style={{ fontSize: '0.875rem' }}>Pending Balance:</span>
@@ -294,6 +345,12 @@ const StaffBilling = () => {
                             <span style={{ fontSize: '0.875rem' }}>Unpaid Invoices:</span>
                             <span style={{ fontWeight: '700' }}>{customerSummary.total_unpaid_invoices}</span>
                         </div>
+                        {customerSummary.telegram_chat_id && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.875rem' }}>Telegram ID:</span>
+                                <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{customerSummary.telegram_chat_id}</span>
+                            </div>
+                        )}
                         {customerSummary.pending_balance > 2000 && (
                             <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 'bold', marginTop: '0.5rem' }}>
                                 ⚠️ Customer has high pending dues!
@@ -307,8 +364,21 @@ const StaffBilling = () => {
                 <p style={{ fontWeight: 'bold' }}>New Customer</p>
                 <input placeholder="Full Name" value={custFormData.name} onChange={e => setCustFormData({...custFormData, name: e.target.value})} required />
                 <input placeholder="Phone Number" value={custFormData.phone} onChange={e => setCustFormData({...custFormData, phone: e.target.value})} required />
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    placeholder="Telegram Chat ID (optional)" 
+                    value={custFormData.telegram_chat_id} 
+                    onChange={e => setCustFormData({...custFormData, telegram_chat_id: e.target.value})} 
+                    style={{ width: '100%' }}
+                  />
+                  <HelpCircle 
+                    size={16} 
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', cursor: 'help', color: 'var(--text-muted)' }} 
+                    title="Ask customer to message @userinfobot on Telegram to get their ID. They MUST also 'Start' your shop's bot!"
+                  />
+                </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button type="button" onClick={() => setShowCustomerForm(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
+                    <button type="button" onClick={() => { setShowCustomerForm(false); }} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
                     <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Create</button>
                 </div>
               </form>
@@ -325,7 +395,7 @@ const StaffBilling = () => {
                     <option value="">Select Existing Customer</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
                 </select>
-                <button onClick={() => setShowCustomerForm(true)} className="btn btn-secondary">
+                <button onClick={() => { setEditMode(false); setCustFormData({ name: '', phone: '', email: '', telegram_chat_id: '' }); setShowCustomerForm(true); }} className="btn btn-secondary">
                     <UserPlus size={18} />
                 </button>
               </div>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas, auth, database
-from ..services import stock_service
+from ..services import stock_service, telegram_service
 
 router = APIRouter()
 
@@ -73,4 +73,29 @@ def create_invoice(
 
     db.commit()
     db.refresh(db_invoice)
+
+    # 5. Send Telegram Notification if customer has a chat_id
+    if customer.telegram_chat_id:
+        try:
+            # Prepare items for the message
+            items_for_msg = []
+            for item in db_invoice.items:
+                items_for_msg.append({
+                    "name": item.product.name,
+                    "quantity": item.quantity,
+                    "price": item.price
+                })
+            
+            msg = telegram_service.format_bill_message(
+                customer_name=customer.name,
+                invoice_id=db_invoice.id,
+                items_data=items_for_msg,
+                total=db_invoice.total_amount,
+                amount_paid=db_invoice.amount_paid,
+                amount_due=db_invoice.amount_due
+            )
+            telegram_service.send_telegram_message(customer.telegram_chat_id, msg)
+        except Exception as e:
+            print(f"Failed to send Telegram notification: {e}")
+
     return db_invoice

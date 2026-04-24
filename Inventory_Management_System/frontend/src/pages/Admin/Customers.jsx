@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../api/apiClient';
 import {
   Users, Search, Phone, Mail, ShoppingBag, DollarSign,
-  X, ChevronDown, ChevronUp, Package, Calendar, Hash, Eye
+  X, ChevronDown, ChevronUp, Package, Calendar, Hash, Eye, Edit
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
@@ -229,6 +229,91 @@ const HistoryModal = ({ customer, onClose }) => {
 };
 
 /* ─────────────────────────────────────────────
+   Customer Edit Modal
+───────────────────────────────────────────── */
+const EditModal = ({ customer, onClose, onUpdate }) => {
+  const [formData, setFormData] = useState({
+    name: customer.name,
+    phone: customer.phone,
+    email: customer.email || '',
+    telegram_chat_id: customer.telegram_chat_id || ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiClient.put(`/customers/${customer.id}`, formData);
+      onUpdate(res.data);
+      onClose();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error updating customer');
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        backdropFilter: 'blur(4px)', zIndex: 1100,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem'
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'white', borderRadius: '1.25rem', width: '100%',
+          maxWidth: '450px', padding: '2rem', boxShadow: '0 25px 60px rgba(0,0,0,0.25)'
+        }}
+      >
+        <h2 style={{ marginBottom: '1.5rem' }}>Edit Customer</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Full Name</label>
+            <input 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+              required 
+              style={{ width: '100%', marginTop: '0.25rem' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Phone Number</label>
+            <input 
+              value={formData.phone} 
+              onChange={e => setFormData({...formData, phone: e.target.value})} 
+              required 
+              style={{ width: '100%', marginTop: '0.25rem' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Email (optional)</label>
+            <input 
+              value={formData.email} 
+              onChange={e => setFormData({...formData, email: e.target.value})} 
+              style={{ width: '100%', marginTop: '0.25rem' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Telegram Chat ID (optional)</label>
+            <input 
+              value={formData.telegram_chat_id} 
+              onChange={e => setFormData({...formData, telegram_chat_id: e.target.value})} 
+              style={{ width: '100%', marginTop: '0.25rem' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────
    Main Customers Page
 ───────────────────────────────────────────── */
 const AdminCustomers = () => {
@@ -236,6 +321,7 @@ const AdminCustomers = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null); // customer for history modal
+  const [editing, setEditing] = useState(null); // customer for edit modal
 
   useEffect(() => {
     (async () => {
@@ -337,6 +423,12 @@ const AdminCustomers = () => {
                     ID #{c.id}
                   </p>
                 </div>
+                <button 
+                  onClick={() => setEditing(c)}
+                  style={{ marginLeft: 'auto', background: '#f1f5f9', border: 'none', borderRadius: '0.5rem', padding: '0.4rem', cursor: 'pointer' }}
+                >
+                  <Edit size={16} color="var(--text-muted)" />
+                </button>
               </div>
 
               {/* Contact details */}
@@ -347,6 +439,11 @@ const AdminCustomers = () => {
                 {c.email && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     <Mail size={14} color="#4f46e5" />{c.email}
+                  </span>
+                )}
+                {c.telegram_chat_id && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#4f46e5', fontWeight: 600 }}>
+                    <Hash size={14} />{c.telegram_chat_id}
                   </span>
                 )}
               </div>
@@ -375,6 +472,17 @@ const AdminCustomers = () => {
       {/* History Modal */}
       {selected && (
         <HistoryModal customer={selected} onClose={() => setSelected(null)} />
+      )}
+      
+      {/* Edit Modal */}
+      {editing && (
+        <EditModal 
+          customer={editing} 
+          onClose={() => setEditing(null)} 
+          onUpdate={(updated) => {
+            setCustomers(customers.map(c => c.id === updated.id ? updated : c));
+          }}
+        />
       )}
     </div>
   );

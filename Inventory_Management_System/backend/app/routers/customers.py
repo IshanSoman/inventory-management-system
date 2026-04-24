@@ -63,6 +63,7 @@ def get_customer_summary(
         "customer_name": customer.name,
         "phone": customer.phone,
         "email": customer.email,
+        "telegram_chat_id": customer.telegram_chat_id,
         "pending_balance": customer.pending_balance,
         "total_unpaid_invoices": unpaid_count,
         "last_payment_date": last_payment.payment_date.isoformat() if last_payment else None,
@@ -123,6 +124,31 @@ def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(data
     
     db_customer = models.Customer(**customer.dict())
     db.add(db_customer)
+    db.commit()
+    db.refresh(db_customer)
+    return db_customer
+
+@router.put("/{customer_id}", response_model=schemas.Customer)
+def update_customer(
+    customer_id: int, 
+    customer_update: schemas.CustomerCreate, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.check_staff_role)
+):
+    db_customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
+    if not db_customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # If phone is changing, check if the new phone is already taken by someone else
+    if customer_update.phone != db_customer.phone:
+        existing = db.query(models.Customer).filter(models.Customer.phone == customer_update.phone).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone number already registered to another customer")
+    
+    # Update fields
+    for key, value in customer_update.dict().items():
+        setattr(db_customer, key, value)
+    
     db.commit()
     db.refresh(db_customer)
     return db_customer
